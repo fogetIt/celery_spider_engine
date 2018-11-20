@@ -1,11 +1,9 @@
-import redis
 import traceback
 import requests
 import simplejson
 from typing import Callable
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from .utils import get_spider_name
 from .logger import logger_facade
 from .errors import HttpMethodUnSupportError
 from .selector import HtmlSelector, JsonSelector, TextSelector
@@ -95,8 +93,8 @@ class Handler(object):
 
 class Response(RequestParams):
 
-    def __init__(self, spider_name: str, url: str, log_path: str, **kwargs):
-        self.logger = logger_facade(log_path, spider_name + '.response')
+    def __init__(self, url: str, log_path: str, name: str, **kwargs):
+        self.logger = logger_facade(log_path, name + '.response')
         self.status_code = None
         self.text = None
         super(Response, self).__init__(url, **kwargs)
@@ -120,13 +118,12 @@ class Response(RequestParams):
 
 class Page(Response):
 
-    def __init__(self, spider_name: str, url: str, log_path: str, *args, **kwargs):
+    def __init__(self, valid_url: str, log_path: str, name: str, *args, **kwargs):
         self.results = []
         self.__html_selector = None
         self.__text_selector = None
         self.__json_selector = None
-        super(Page, self).__init__(spider_name, url, log_path, **kwargs)
-        self.__log_path = log_path
+        super(Page, self).__init__(valid_url, log_path, name, **kwargs)
         self.__args = args
 
     def html_selector(self, text=None):
@@ -160,6 +157,6 @@ class Page(Response):
             self.logger.error(arg)
             raise Exception("arg must is dict, example: page.put('key_id':'xxx', ...)")
 
-    def add_task(self, url: str, **kwargs):
+    def add_task(self, url: str, force: bool=False, **kwargs):
         from .tasks import run_spider
-        run_spider.delay(self.__log_path, *self.__args, url, **kwargs)
+        run_spider.delay(url, force=force, *self.__args, **kwargs)

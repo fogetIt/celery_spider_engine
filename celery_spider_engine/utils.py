@@ -2,17 +2,42 @@
 # @Date:   2018-04-13 18:31:34
 # @Last Modified time: 2018-04-13 18:31:45
 import os
+import types
+import typing
 import socket
 import hashlib
+import importlib
 from urllib3.util import parse_url, Url
-
-
-def get_spider_name(spider_obj) -> str:
-    return spider_obj.__name__
+from .errors import ImportModuleError
 
 
 def get_script_path() -> str:
     return os.getcwd()
+
+
+def object2sequence(obj=None) -> typing.Tuple[str, str]:
+    if not obj:
+        return '', ''
+    if not isinstance(obj, types.ModuleType):
+        obj_module = obj.__module__
+        obj_name = obj.__name__
+    else:
+        obj_module = obj.__name__
+        obj_name = ''
+    return obj_name, obj_module
+
+
+def sequence2object(obj_name: str, obj_module: str):
+    if not obj_module:
+        return None
+    try:
+        obj = importlib.import_module(obj_module)
+        if obj_name:
+            obj = getattr(obj, obj_name)
+    except Exception as e:
+        print(e)
+        raise ImportModuleError(obj_name, obj_module)
+    return obj
 
 
 def make_hash(string: str) -> str:

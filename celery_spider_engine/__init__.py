@@ -1,18 +1,21 @@
-import redis
-import importlib
+import sys
 from celery import Celery
-from .constants import PY2
-from .errors import PythonVersionUnmatchError, ImportModuleError
+from .single import Single
 from .tasks import run_spider
+from .utils import object2sequence
+from .errors import PythonVersionUnmatchError
 
+PY2 = sys.version_info.major == 2
 if PY2:
     raise PythonVersionUnmatchError
 
 
-def start_spider(app: Celery):
+def start_spider(app: Celery, spider, pipeline=None):
     app.autodiscover_tasks(packages=['celery_spider_engine'], related_name='tasks')
     # app.conf.update({'include': 'celery_spider_engine.tasks'})
     """
+    :param spider:    爬虫执行程序
+    :param pipeline:  数据存储管道
     params['url']               页面地址
     params['method']='get'      页面请求方式
     params['options']={}        requests options
@@ -25,29 +28,17 @@ def start_spider(app: Celery):
     # 日志文件存储路径
     log_path = str(app.conf.get('SPIDER_LOG_PATH'))
     # redis 判重集合
-    spider_redis_host = str(app.conf['SPIDER_REDIS_HOST'])
-    spider_redis_port = int(app.conf['SPIDER_REDIS_PORT'])
-    spider_redis_db = int(app.conf['SPIDER_REDIS_DB'])
-    spider_redis_password = app.conf.get('SPIDER_REDIS_PASSWORD', None)
-    # 爬虫执行程序
-    spider_mod = app.conf['SPIDER_MOD']
-    spider_package = app.conf.get('SPIDER_PACKAGE', None)
-    # 数据存储管道
-    spider_pipeline_mod = app.conf.get('SPIDER_PIPELINE_MOD')
-    spider_pipeline_package = app.conf.get('SPIDER_PIPELINE_PACKAGE')
-
-    try:
-        spider = importlib.import_module(spider_mod, spider_package)
-    except Exception as e:
-        print(e)
-        raise ImportModuleError(spider_mod, spider_package)
-
+    spider_redis = (
+        str(app.conf['SPIDER_REDIS_HOST']),
+        int(app.conf['SPIDER_REDIS_PORT']),
+        int(app.conf['SPIDER_REDIS_DB']),
+        str(app.conf.get('SPIDER_REDIS_PASSWORD', ''))
+    )
     for params in spider.start_list:
         run_spider.delay(
-            log_path,
-            spider_redis_host, spider_redis_port, spider_redis_db, spider_redis_password,
-            spider_mod, spider_package,
-            spider_pipeline_mod, spider_pipeline_package,
+            params.pop('url'),
+            params.pop('force', False),
+            log_path, *object2sequence(spider), *object2sequence(pipeline), *spider_redis,  # only py3
             **params
         )
 
