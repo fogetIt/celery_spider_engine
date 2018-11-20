@@ -159,4 +159,4 @@ class Page(Response):
 
     def add_task(self, url: str, force: bool=False, **kwargs):
         from .tasks import run_spider
-        run_spider.delay(url, force=force, *self.__args, **kwargs)
+        run_spider.delay(url, force, *self.__args, **kwargs)
