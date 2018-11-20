@@ -19,7 +19,8 @@ class Spider(object):
     @staticmethod
     def process(p):
         if p.is_default_level():
-            p.add_task('www.baidu.com', force=True)
+            # p.add_task('www.baidu.com', force=True)
+            pass
 
 
 class TestProj(unittest.TestCase):
